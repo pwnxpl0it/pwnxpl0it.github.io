@@ -10,7 +10,7 @@ Hello there, this is my writeup for [Creative - THM](https://tryhackme.com/r/roo
 # Recon
 
 
-So I started nmap scanning to find services that maybe on other ports that I could exploit to gain initial access
+I started nmap scanning to find services
 
 ```console
 
