@@ -7,9 +7,8 @@ tags: Creative THM Tryhackme CTF
 
 Hello there, this is my writeup for [Creative - THM](https://tryhackme.com/r/room/creative)
 
-# Enumeration
+# Recon
 
-First I tried to access the server through port 80, visting the IP will redirect to `http://creative.thm/`
 
 So I started nmap scanning to find services that maybe on other ports that I could exploit to gain initial access
 
@@ -42,7 +41,7 @@ Shellcodes: No Results
 
 ```
 
-Then I did some researching and found out that I can access the website If I add it to `/etc/hosts`
+I tried to access the server through port 80, visting the IP will redirect to `http://creative.thm/` We can access the website If we add it to `/etc/hosts`
 
 so I opened my one and only loved editor, VIM 💓 
 
