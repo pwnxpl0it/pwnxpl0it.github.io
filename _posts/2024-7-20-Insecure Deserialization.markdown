@@ -254,6 +254,8 @@ We can try and mess around with `create` endpoint if we didn't had the code to k
 
 But we will focus on `/summary` since we have the code and we know that it takes a `person` GET parameter,it takes a base64 encoded serialized object (base64 of an object dumped with pickel) then it calls `summary()`
 
+The developer expects us to only use `/create` endpoint to create an object and serialize that object,so he doesn't check in `/summary` if the data has been tampered, we are going to exploit that.
+
 so let's craft our exploit that does create our malicious object, base64 encode it so we can send it and pwn the server
 
 I used python reverse shell from [revshells.com](https://www.revshells.com)
