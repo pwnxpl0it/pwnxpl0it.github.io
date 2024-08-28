@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "U.A. Highschool THM writup"
+title: "U.A. Highschool THM writeup"
 date: 2024-08-27 11:50:26.059333741 UTC
 tags: CTF Tryhackme THM yueiua ua Highschool
 ---
