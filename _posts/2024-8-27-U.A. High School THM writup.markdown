@@ -198,7 +198,7 @@ I used [hexedit](https://man.archlinux.org/man/hexedit.1.en) to change the first
 
 ![hexedit](/assets/img/CTF/THM/yueiua/hexedit.png)
 
-It works now!, this a normal image now
+It works!, this a normal image now
 ![oneforall_fixed](/assets/img/CTF/THM/yueiua/oneforall_fixed.png)
 
 Since this a normal image we can try stegnogrpahy, a passphrase is needed so I used the passphrase we found earlier, it worked,
