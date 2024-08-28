@@ -279,7 +279,7 @@ Thus it is meant to prevent expressions that can be executed by bash
 However,The filter is not perfect, we can still use `<,>,$`, also note that eval runs `echo $feedback` already, we can write to `/root/.ssh/authorized_keys` so we can use our own key to connect as root
 ![eval_echo](/assets/img/CTF/THM/yueiua/eval_echo.png)
 
-let's make an ssh key using ssh-keygen
+let's make ssh key pairs using ssh-keygen
 
 ```console
 $ ssh-keygen -t rsa -f ~/.ssh/ua -C root
