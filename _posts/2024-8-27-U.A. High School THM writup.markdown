@@ -198,13 +198,11 @@ I used [hexedit](https://man.archlinux.org/man/hexedit.1.en) to change the first
 
 ![hexedit](/assets/img/CTF/THM/yueiua/hexedit.png)
 
-It works!, this a normal image now
+The image is now viewable:
+
 ![oneforall_fixed](/assets/img/CTF/THM/yueiua/oneforall_fixed.png)
 
-Since this a normal image we can try stegnogrpahy, a passphrase is needed so I used the passphrase we found earlier, it worked,
-got a creds.txt that has deku's password
-
-I used [steghide](https://www.kali.org/tools/steghide/)
+I used the passphrase with steghide to extract hidden content, revealing creds.txt with deku's password:
 
 ```console
 $ steghide --extract -sf oneforall.jpg
