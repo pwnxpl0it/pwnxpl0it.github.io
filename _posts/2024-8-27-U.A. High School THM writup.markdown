@@ -80,7 +80,7 @@ Breakdown:
 5. **`-fw 171`**: Filters results based on the size of the response body. The option `171` ensures that only results with a response body size different from 171 bytes are shown, helping to filter out false positives or irrelevant results.
 
 
-Nothing were found, I went back and tried to find something interesting
+Nothing was found, I went back and tried to find something interesting
 
 All buttons seemed to do nothing, just the contact form was sending a POST Request so I though I can try Blind XSS
 
@@ -178,7 +178,7 @@ I did an `ls assets/images` to check if there is some files I don't know about, 
 
 ![assets_ls](/assets/img/CTF/THM/yueiua/assets_ls.png)
 
-However I noticed that `oneforall.png` is not opening, the other one is just the background in landing page
+However I noticed that `oneforall.png` is not opening, the other one is just the background in the landing page
 
 ![oneforall_failed](/assets/img/CTF/THM/yueiua/oneforall_failed.png)
 
