@@ -289,9 +289,8 @@ I ran sudo -l, it asked about a password then I remembered the password I found 
 
 We have one binary we can run, ping, but also we have LD_PRELOAD Enabled, I have looked up ping on [GTFOBins](https://gtfobins.github.io/#ping) but nothing came up.
 
-> ##### TIP
 > LD_PRELOAD trick is a useful technique to influence the linkage of shared libraries and the resolution of symbols (functions) at runtime.
-{: .block-tip }
+{: .prompt-tip }
 
 
 now we can simply exploit LD_PRELOAD using the following C code
