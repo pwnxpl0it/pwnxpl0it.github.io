@@ -121,7 +121,7 @@ Android apps are written in Java and compiled into platform-independent Dalvik E
 
 ---
 
-# **Android Security Model**
+## **Android Security Model**
 
 The Android security model consists of two main layers:
 
