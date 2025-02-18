@@ -81,7 +81,9 @@ To analyze an APK, you need to decompile it into a readable format. Here are som
 
 1. **`apktool`** (For decoding resources and rebuilding APKs)
 2. **`jadx`** (For decompiling Java bytecode to readable source code)
-3. **`Smali`/`Baksmali`** (For working with DEX bytecode)
+3. **`jadx-gui`** (For working with DEX bytecode)
+4. **`dex2jar`** (For converting DEX files to JAR files)
+5. **`JD-GUI`** (For viewing Java decompiled code)
 
 #### APKtool
 
